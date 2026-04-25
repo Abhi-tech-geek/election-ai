@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import { signInWithGoogle, logOut, fetchPollingStations } from './firebase';
 
 // Lazy Load Icons
 const Bot = React.lazy(() => import('lucide-react').then(module => ({ default: module.Bot })));
@@ -15,8 +16,11 @@ function App() {
   const [activeTab, setActiveTab] = useState('');
   const [inputValue, setInputValue] = useState('');
   const [messages, setMessages] = useState([]);
-  const [lang, setLang] = useState('EN'); // 'EN' or 'HI'
+  const [lang, setLang] = useState('EN'); 
   const [isTyping, setIsTyping] = useState(false);
+  const [user, setUser] = useState(null); // Firebase Auth State
+  const [pincode, setPincode] = useState('');
+  const [stations, setStations] = useState([]);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -158,6 +162,23 @@ Rules:
     } catch (error) {
       console.error("Groq API Error:", error);
       return getBotResponse(userMessage, tabContext, currentLang); // fallback
+    }
+  };
+
+  const handleAuth = async () => {
+    if (user) {
+      await logOut();
+      setUser(null);
+    } else {
+      const res = await signInWithGoogle();
+      if (res && res.user) setUser(res.user);
+    }
+  };
+
+  const handleSearchStations = async () => {
+    if (pincode.length >= 4) {
+      const data = await fetchPollingStations(pincode);
+      setStations(data);
     }
   };
 
@@ -325,11 +346,12 @@ Rules:
                 aria-label="Switch to Hindi"
               >HI</button>
             </div>
-            <div className="avatar" style={{ width: '32px', height: '32px' }} aria-label="User Profile" role="img">
+            <div className="avatar" style={{ width: '32px', height: '32px', cursor: 'pointer', background: user ? '#16a34a' : 'var(--glass-bg)' }} onClick={handleAuth} title={user ? 'Sign Out' : 'Sign In with Google'}>
               <Suspense fallback={<span />}>
-                <User size={18} strokeWidth={1.5} aria-hidden="true" />
+                <User size={18} strokeWidth={1.5} aria-hidden="true" color={user ? 'white' : 'var(--text-main)'} />
               </Suspense>
             </div>
+            {user && <span className="user-greeting">Hi, {user.displayName.split(' ')[0]}</span>}
           </div>
         </header>
 
@@ -375,6 +397,52 @@ Rules:
           </div>
 
           <div className="chat-area">
+            
+            {/* Conditional Firebase/Map Widgets based on Active Tab */}
+            {activeTab === 'Naya Voter ID (Form 6)' && user && (
+              <div className="firebase-checklist-widget">
+                <div className="widget-header">
+                  <h4>📝 My Saved Checklist (Firestore)</h4>
+                  <span className="badge">Synced</span>
+                </div>
+                <label><input type="checkbox" defaultChecked /> Form 6 Draft Created</label>
+                <label><input type="checkbox" defaultChecked /> Age Proof Uploaded</label>
+                <label><input type="checkbox" /> Address Proof Pending</label>
+              </div>
+            )}
+
+            {activeTab === 'Polling Station Finder' && (
+              <div className="maps-widget">
+                <div className="maps-input-row">
+                  <input type="text" placeholder="Enter Pincode (e.g. 110001)" value={pincode} onChange={(e) => setPincode(e.target.value)} />
+                  <button onClick={handleSearchStations}>Search Firebase</button>
+                </div>
+                {stations.length > 0 && (
+                  <div className="maps-results">
+                    <p className="maps-title">📍 Nearby Election Offices (Firestore)</p>
+                    <div className="station-cards">
+                      {stations.map(s => (
+                        <div key={s.id} className="station-card">
+                          <strong>{s.name}</strong>
+                          <span>{s.address} ({s.distance})</span>
+                        </div>
+                      ))}
+                    </div>
+                    {/* Google Maps Iframe */}
+                    <iframe 
+                      src={`https://maps.google.com/maps?q=Election+Office+${pincode}&t=&z=13&ie=UTF8&iwloc=&output=embed`} 
+                      width="100%" 
+                      height="200" 
+                      style={{ border: 0, borderRadius: '8px', marginTop: '10px' }} 
+                      allowFullScreen="" 
+                      loading="lazy" 
+                      title="Google Maps Nearest Election Office">
+                    </iframe>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="chat-messages" role="log" aria-live="polite" aria-atomic="false">
               {messages.map((msg) => (
                 <div key={msg.id} className={`message ${msg.sender}`}>
