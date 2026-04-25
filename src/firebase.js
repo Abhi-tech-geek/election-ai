@@ -54,3 +54,13 @@ export const fetchPollingStations = async (pincode) => {
   const querySnapshot = await getDocs(q);
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
+
+// Mock function for Firebase Cloud Storage (Photo Upload)
+export const uploadPhotoMock = async (file) => {
+  if (!file) throw new Error("No file selected");
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve({ success: true, url: "gs://election-sahayak.appspot.com/photos/voter-id-pic.jpg", message: "Successfully uploaded to Firebase Storage" });
+    }, 1200); // Simulate network delay
+  });
+};

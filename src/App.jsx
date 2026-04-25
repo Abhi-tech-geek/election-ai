@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
-import { signInWithGoogle, logOut, fetchPollingStations } from './firebase';
+import { signInWithGoogle, logOut, fetchPollingStations, uploadPhotoMock } from './firebase';
 
 // Lazy Load Icons
 const Bot = React.lazy(() => import('lucide-react').then(module => ({ default: module.Bot })));
@@ -10,18 +10,20 @@ const Calendar = React.lazy(() => import('lucide-react').then(module => ({ defau
 const MapPin = React.lazy(() => import('lucide-react').then(module => ({ default: module.MapPin })));
 const CheckCircle2 = React.lazy(() => import('lucide-react').then(module => ({ default: module.CheckCircle2 })));
 const Globe2 = React.lazy(() => import('lucide-react').then(module => ({ default: module.Globe2 })));
+const Video = React.lazy(() => import('lucide-react').then(module => ({ default: module.Video })));
 import './index.css';
 
 function App() {
   const [activeTab, setActiveTab] = useState('');
-  const [inputValue, setInputValue] = useState('');
   const [messages, setMessages] = useState([]);
   const [lang, setLang] = useState('EN'); 
   const [isTyping, setIsTyping] = useState(false);
   const [user, setUser] = useState(null); // Firebase Auth State
   const [pincode, setPincode] = useState('');
   const [stations, setStations] = useState([]);
+  const [uploadStatus, setUploadStatus] = useState('');
   const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -192,6 +194,8 @@ Rules:
       userQuery = lang === 'HI' ? '2026 के आम चुनाव की तारीखें क्या हैं?' : 'What are the general election dates for 2026?';
     } else if (tabName === 'Polling Station Finder') {
       userQuery = lang === 'HI' ? 'मैं आगामी चुनाव के लिए अपना मतदान केंद्र कैसे ढूंढ सकता हूं?' : 'How can I find my polling station for the upcoming election?';
+    } else if (tabName === 'Voter Awareness') {
+      userQuery = lang === 'HI' ? 'मतदाता जागरूकता के बारे में जानकारी दिखाएं' : 'Show me voter awareness information';
     }
 
     const initialMessages = [
@@ -217,7 +221,8 @@ Rules:
   const navItems = [
     { name: 'Naya Voter ID (Form 6)', icon: <FileText className="icon" size={22} strokeWidth={1.5} /> },
     { name: 'Election Dates 2026', icon: <Calendar className="icon" size={22} strokeWidth={1.5} /> },
-    { name: 'Polling Station Finder', icon: <MapPin className="icon" size={22} strokeWidth={1.5} /> }
+    { name: 'Polling Station Finder', icon: <MapPin className="icon" size={22} strokeWidth={1.5} /> },
+    { name: 'Voter Awareness', icon: <Video className="icon" size={22} strokeWidth={1.5} /> }
   ];
 
   const quickActions = lang === 'HI' ? [
@@ -251,9 +256,11 @@ Rules:
   }, [isTyping, messages, activeTab, lang]);
 
   const handleSend = useCallback(async () => {
-    if (!inputValue.trim()) return;
+    const userMsg = inputRef.current?.value;
+    if (!userMsg || !userMsg.trim()) return;
     
-    const userMsg = inputValue;
+    // Clear input ref immediately to stop further re-renders
+    inputRef.current.value = '';
     
     const newMessages = [
       ...messages,
@@ -261,7 +268,6 @@ Rules:
     ];
     
     setMessages(newMessages);
-    setInputValue('');
     setIsTyping(true);
     
     const botReply = await generateGroqResponse(userMsg, activeTab, lang);
@@ -276,7 +282,19 @@ Rules:
       }
     ]);
     setIsTyping(false);
-  }, [inputValue, messages, activeTab, lang]);
+  }, [messages, activeTab, lang]);
+
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadStatus('Uploading to Firebase Storage...');
+    try {
+      const res = await uploadPhotoMock(file);
+      setUploadStatus(res.message);
+    } catch (err) {
+      setUploadStatus('Upload failed');
+    }
+  };
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
@@ -407,7 +425,27 @@ Rules:
                 </div>
                 <label><input type="checkbox" defaultChecked /> Form 6 Draft Created</label>
                 <label><input type="checkbox" defaultChecked /> Age Proof Uploaded</label>
-                <label><input type="checkbox" /> Address Proof Pending</label>
+                <div style={{ marginTop: '5px', fontSize: '13px' }}>
+                  <strong>Upload Passport Photo (Cloud Storage):</strong>
+                  <input type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: 'block', margin: '5px 0', fontSize: '12px' }} />
+                  {uploadStatus && <span style={{ color: 'var(--primary-blue)', fontSize: '12px', fontWeight: 'bold' }}>✓ {uploadStatus}</span>}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'Voter Awareness' && (
+              <div className="maps-widget">
+                <p className="maps-title">📺 Official Voter Awareness Campaign (YouTube Embed)</p>
+                <iframe 
+                  width="100%" 
+                  height="250" 
+                  src="https://www.youtube.com/embed/S2pDB9d9-F8" 
+                  title="YouTube video player" 
+                  frameBorder="0" 
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                  allowFullScreen
+                  style={{ borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                </iframe>
               </div>
             )}
 
@@ -506,8 +544,7 @@ Rules:
                   type="text" 
                   className="chat-input" 
                   placeholder={lang === 'HI' ? 'अपना प्रश्न यहां पूछें...' : `Ask a question about ${activeTab}...`}
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
+                  ref={inputRef}
                   onKeyDown={handleKeyDown}
                   aria-label="Chat input field"
                 />
