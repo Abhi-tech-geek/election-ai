@@ -1,5 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Bot, User, Send, FileText, Calendar, MapPin, CheckCircle2, Globe2 } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+
+// Lazy Load Icons
+const Bot = React.lazy(() => import('lucide-react').then(module => ({ default: module.Bot })));
+const User = React.lazy(() => import('lucide-react').then(module => ({ default: module.User })));
+const Send = React.lazy(() => import('lucide-react').then(module => ({ default: module.Send })));
+const FileText = React.lazy(() => import('lucide-react').then(module => ({ default: module.FileText })));
+const Calendar = React.lazy(() => import('lucide-react').then(module => ({ default: module.Calendar })));
+const MapPin = React.lazy(() => import('lucide-react').then(module => ({ default: module.MapPin })));
+const CheckCircle2 = React.lazy(() => import('lucide-react').then(module => ({ default: module.CheckCircle2 })));
+const Globe2 = React.lazy(() => import('lucide-react').then(module => ({ default: module.Globe2 })));
 import './index.css';
 
 function App() {
@@ -152,7 +161,7 @@ Rules:
     }
   };
 
-  const handleTabClick = async (tabName) => {
+  const handleTabClick = useCallback(async (tabName) => {
     setActiveTab(tabName);
     
     let userQuery = '';
@@ -182,7 +191,7 @@ Rules:
       }
     ]);
     setIsTyping(false);
-  };
+  }, [lang]);
 
   const navItems = [
     { name: 'Naya Voter ID (Form 6)', icon: <FileText className="icon" size={22} strokeWidth={1.5} /> },
@@ -196,7 +205,7 @@ Rules:
     "How to register?", "Document list?", "Next election date?"
   ];
 
-  const handleQuickAction = async (query) => {
+  const handleQuickAction = useCallback(async (query) => {
     if (isTyping) return;
     const newMessages = [
       ...messages,
@@ -218,9 +227,9 @@ Rules:
       }
     ]);
     setIsTyping(false);
-  };
+  }, [isTyping, messages, activeTab, lang]);
 
-  const handleSend = async () => {
+  const handleSend = useCallback(async () => {
     if (!inputValue.trim()) return;
     
     const userMsg = inputValue;
@@ -246,7 +255,7 @@ Rules:
       }
     ]);
     setIsTyping(false);
-  };
+  }, [inputValue, messages, activeTab, lang]);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
@@ -256,93 +265,123 @@ Rules:
 
   return (
     <div className="dashboard-container">
-      {/* Sidebar */}
-      <div className="sidebar">
+      {/* Sidebar - Semantic nav */}
+      <nav className="sidebar" aria-label="Main Navigation">
         <div className="sidebar-header">
-          <Bot size={32} color="var(--primary-blue)" strokeWidth={1.5} />
+          <Suspense fallback={<div style={{ width: 32, height: 32 }} />}>
+            <Bot size={32} color="var(--primary-blue)" strokeWidth={1.5} aria-hidden="true" />
+          </Suspense>
           <h1>Election Sahayak</h1>
         </div>
         
-        <div className="nav-buttons">
+        <div className="nav-buttons" role="menu">
           {navItems.map((item) => (
             <button 
               key={item.name}
               className={`nav-btn ${activeTab === item.name ? 'active' : ''}`}
               onClick={() => handleTabClick(item.name)}
+              role="menuitem"
+              aria-current={activeTab === item.name ? 'page' : undefined}
             >
-              {item.icon}
+              <Suspense fallback={<div style={{ width: 22, height: 22 }} />}>
+                {item.icon}
+              </Suspense>
               <span style={{ flex: 1, textAlign: 'left' }}>{item.name}</span>
-              {activeTab === item.name && <CheckCircle2 className="icon" size={20} strokeWidth={1.5} />}
+              {activeTab === item.name && (
+                <Suspense fallback={<div style={{ width: 20, height: 20 }} />}>
+                  <CheckCircle2 className="icon" size={20} strokeWidth={1.5} aria-hidden="true" />
+                </Suspense>
+              )}
             </button>
           ))}
         </div>
-      </div>
+      </nav>
 
-      {/* Main Content */}
-      <div className="main-content">
-        {/* Header */}
-        <div className="header">
+      {/* Main Content - Semantic main */}
+      <main className="main-content" aria-label="Chat Interface">
+        {/* Header - Semantic header */}
+        <header className="header">
           <div className="header-content">
             <h2>Election Assistant - Empowering Every Voter</h2>
-            <CheckCircle2 size={22} color="var(--white)" fill="var(--accent-blue)" strokeWidth={1.5} style={{ marginLeft: '4px' }} />
+            <Suspense fallback={<span />}>
+              <CheckCircle2 size={22} color="var(--white)" fill="var(--accent-blue)" strokeWidth={1.5} style={{ marginLeft: '4px' }} aria-hidden="true" />
+            </Suspense>
           </div>
           <div className="header-actions">
-            <div className="lang-toggle">
-              <Globe2 size={16} color="var(--white)" />
+            <div className="lang-toggle" role="group" aria-label="Language selection">
+              <Suspense fallback={<span />}>
+                <Globe2 size={16} color="var(--white)" aria-hidden="true" />
+              </Suspense>
               <button 
                 className={`lang-btn ${lang === 'EN' ? 'active' : ''}`}
                 onClick={() => setLang('EN')}
+                aria-pressed={lang === 'EN'}
+                aria-label="Switch to English"
               >EN</button>
               <button 
                 className={`lang-btn ${lang === 'HI' ? 'active' : ''}`}
                 onClick={() => setLang('HI')}
+                aria-pressed={lang === 'HI'}
+                aria-label="Switch to Hindi"
               >HI</button>
             </div>
-            <div className="avatar" style={{ width: '32px', height: '32px' }}>
-              <User size={18} strokeWidth={1.5} />
+            <div className="avatar" style={{ width: '32px', height: '32px' }} aria-label="User Profile" role="img">
+              <Suspense fallback={<span />}>
+                <User size={18} strokeWidth={1.5} aria-hidden="true" />
+              </Suspense>
             </div>
           </div>
-        </div>
+        </header>
 
-        {/* Chat Area Wrapper for Background & Shadow */}
-        <div className="chat-area-wrapper">
+        {/* Chat Area Wrapper */}
+        <section className="chat-area-wrapper" aria-label="Chat and Timeline">
           
           {/* Visual Progress Tracker (Pipeline) */}
-          <div className="pipeline-container">
-            <div className="pipeline-header">
+          <div className="pipeline-container" aria-label="Electoral Process Timeline">
+            <div className="pipeline-header" id="timeline-heading">
               {lang === 'HI' ? 'चुनावी प्रक्रिया समयरेखा (संदर्भ 2024)' : 'Electoral Process Timeline (Reference 2024)'}
             </div>
-            <div className="pipeline-steps">
-              <div className="pipeline-line"></div>
+            <div className="pipeline-steps" aria-labelledby="timeline-heading">
+              <div className="pipeline-line" aria-hidden="true"></div>
               
               <div className="pipeline-step active">
-                <div className="step-circle active"><CheckCircle2 size={14} /></div>
+                <div className="step-circle active">
+                  <Suspense fallback={<span />}>
+                    <CheckCircle2 size={14} aria-hidden="true" />
+                  </Suspense>
+                </div>
                 <span className="step-label">{lang === 'HI' ? 'अधिसूचना' : 'Notification'}</span>
               </div>
               
               <div className="pipeline-step active">
-                <div className="step-circle active"><CheckCircle2 size={14} /></div>
+                <div className="step-circle active">
+                  <Suspense fallback={<span />}>
+                    <CheckCircle2 size={14} aria-hidden="true" />
+                  </Suspense>
+                </div>
                 <span className="step-label">{lang === 'HI' ? 'नामांकन' : 'Nominations'}</span>
               </div>
               
               <div className="pipeline-step">
-                <div className="step-circle"></div>
+                <div className="step-circle" aria-hidden="true"></div>
                 <span className="step-label">{lang === 'HI' ? 'मतदान का दिन' : 'Polling Day'}</span>
               </div>
               
               <div className="pipeline-step">
-                <div className="step-circle"></div>
+                <div className="step-circle" aria-hidden="true"></div>
                 <span className="step-label">{lang === 'HI' ? 'मतगणना' : 'Counting'}</span>
               </div>
             </div>
           </div>
 
           <div className="chat-area">
-            <div className="chat-messages">
+            <div className="chat-messages" role="log" aria-live="polite" aria-atomic="false">
               {messages.map((msg) => (
                 <div key={msg.id} className={`message ${msg.sender}`}>
-                  <div className="avatar">
-                    {msg.sender === 'bot' ? <Bot size={24} strokeWidth={1.5} /> : <User size={24} strokeWidth={1.5} />}
+                  <div className="avatar" aria-hidden="true">
+                    <Suspense fallback={<span />}>
+                      {msg.sender === 'bot' ? <Bot size={24} strokeWidth={1.5} /> : <User size={24} strokeWidth={1.5} />}
+                    </Suspense>
                   </div>
                   <div className="message-content">
                     <div className="message-bubble">
@@ -350,7 +389,9 @@ Rules:
                     </div>
                     {msg.sender === 'bot' && msg.isVerified && (
                       <div className="fact-check-badge">
-                        <CheckCircle2 size={12} color="#16a34a" />
+                        <Suspense fallback={<span />}>
+                          <CheckCircle2 size={12} color="#16a34a" aria-hidden="true" />
+                        </Suspense>
                         <span>{lang === 'HI' ? 'सत्यापित स्रोत: आधिकारिक ECI पोर्टल' : 'Source: Official ECI Portal'}</span>
                       </div>
                     )}
@@ -358,9 +399,11 @@ Rules:
                 </div>
               ))}
               {isTyping && (
-                <div className="message bot">
-                  <div className="avatar">
-                    <Bot size={24} strokeWidth={1.5} />
+                <div className="message bot" aria-label="AI is typing">
+                  <div className="avatar" aria-hidden="true">
+                    <Suspense fallback={<span />}>
+                      <Bot size={24} strokeWidth={1.5} />
+                    </Suspense>
                   </div>
                   <div className="message-content">
                     <div className="message-bubble typing-bubble">
@@ -375,9 +418,14 @@ Rules:
             </div>
 
             {/* Quick Actions */}
-            <div className="quick-actions-container">
+            <div className="quick-actions-container" aria-label="Quick Actions">
                {quickActions.map((action, idx) => (
-                 <button key={idx} className="quick-action-chip" onClick={() => handleQuickAction(action)}>
+                 <button 
+                    key={idx} 
+                    className="quick-action-chip" 
+                    onClick={() => handleQuickAction(action)}
+                    aria-label={`Ask: ${action}`}
+                 >
                     {action}
                  </button>
                ))}
@@ -393,18 +441,23 @@ Rules:
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={handleKeyDown}
+                  aria-label="Chat input field"
                 />
-                <button className="send-btn" onClick={handleSend}>
-                  <Send size={20} strokeWidth={1.5} />
+                <button 
+                  className="send-btn" 
+                  onClick={handleSend}
+                  aria-label="Send message"
+                >
+                  <Suspense fallback={<span />}>
+                    <Send size={20} strokeWidth={1.5} aria-hidden="true" />
+                  </Suspense>
                 </button>
               </div>
             </div>
 
-
-            
           </div>
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
   );
 }
